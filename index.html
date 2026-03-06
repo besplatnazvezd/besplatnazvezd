@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Video Support Request</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; margin-top: 50px; }
+        video { border: 1px solid #ccc; margin-top: 20px; }
+        #status { color: green; font-weight: bold; }
+        #myId { font-size: 0.9em; color: gray; }
+    </style>
+</head>
+<body>
+    <h1>Connecting to Support...</h1>
+    <video id="localVideo" autoplay playsinline muted style="width: 300px;"></video>
+    <p id="status">Waiting for camera and microphone access...</p>
+    <p id="myId"></p>
+
+    <script>
+        const PEERJS_HOST = 'peerjs.com'; // Используем публичный сервер PeerJS
+        const PEERJS_PORT = 443;        // Порт для HTTPS
+        const PEERJS_PATH = '/';        // Путь для подключения
+
+        const peer = new Peer({
+            host: PEERJS_HOST,
+            port: PEERJS_PORT,
+            path: PEERJS_PATH
+        });
+
+        let localStream = null; // Для хранения потока локальной камеры/микрофона
+
+        // 1. Получаем разрешение на камеру и микрофон
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then((stream) => {
+                localStream = stream;
+                document.getElementById('localVideo').srcObject = stream;
+                document.getElementById('status').textContent = "Camera and microphone ready. Waiting for admin...";
+                document.getElementById('status').style.color = "green";
+                peer.options.debug = 3; // Включаем отладку PeerJS
+            })
+            .catch((err) => {
+                console.error("Error accessing media devices:", err);
+                document.getElementById('status').textContent = `Error: ${err.name}. Please allow camera/mic access.`;
+                document.getElementById('status').style.color = "red";
+            });
+
+        // 2. Когда PeerJS готов, получаем ID пользователя
+        peer.on('open', (id) => {
+            console.log('My Peer ID is: ' + id);
+            document.getElementById('myId').textContent = `Your unique ID: ${id}`;
+
+            // Важно: теперь, когда есть ID, мы можем отправить его администратору.
+            // Это делается НЕ через этот JS, а через Python-бот.
+            // Бот получает этот ID (например, если пользователь отправит его боту)
+                     // и генерирует ссылку для админа.
+            // Этот JS-код только ИНИЦИИРУЕТ процесс.
+            // Пользователь должен будет отправить свой ID боту (или бот должен
+            // получить его через какое-то API, что сложнее).
+            // Для простоты, предлагаем пользователю скопировать ID и отправить его боту.
+            alert(`Your ID is: ${id}. Please send this ID to the support bot.`);
+        });
+
+        peer.on('error', (err) => {
+            console.error('PeerJS error:', err);
+            document.getElementById('status').textContent = `Connection error: ${err.message}`;
+            document.getElementById('status').style.color = "red";
+        });
+
+        // Для этого примера, мы не обрабатываем входящие звонки здесь,
+        // так как это страница пользователя. Администратор будет делать звонок.
+        peer.on('call', (call) => {
+            console.log('Incoming call from admin. Answering...');
+            // Если администратор звонит, отвечаем ему
+            call.answer(localStream);
+            
+            call.on('stream', (remoteStream) => {
+                // Тут вы можете отобразить видео админа, если он его передает
+                // Для поддержки это обычно не нужно, админ смотрит на пользователя
+                console.log('Received remote stream from admin.');
+                // document.getElementById('adminVideo').srcObject = remoteStream; // Если бы был тег adminVideo
+            });
+
+            call.on('close', () => {
+                console.log('Call ended.');
+                // Можно обновить статус или показать сообщение
+            });
+        });
+    </script>
+</body>
+</html>
